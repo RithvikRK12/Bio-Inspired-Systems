@@ -1,0 +1,95 @@
+import numpy as np
+import matplotlib.pyplot as plt  # Import pyplot
+
+# Parameters
+POP_SIZE = 50
+GENOME_LENGTH = 10
+GENERATIONS = 100
+CROSSOVER_PROB = 0.8
+MUTATION_PROB = 0.1
+MUTATION_STD = 0.1
+ELITISM = True
+
+def fitness(x):
+    return -np.sum(x**2)
+
+def initialize_population():
+    return np.random.uniform(-5, 5, size=(POP_SIZE, GENOME_LENGTH))
+
+def evaluate_population(pop):
+    return np.array([fitness(ind) for ind in pop])
+
+def select_parents(pop, fitness_vals):
+    probs = (fitness_vals - np.min(fitness_vals)) + 1e-6
+    probs /= np.sum(probs)
+    indices = np.random.choice(len(pop), size=POP_SIZE, p=probs)
+    return pop[indices]
+
+def crossover(parent1, parent2):
+    if np.random.rand() < CROSSOVER_PROB:
+        point = np.random.randint(1, GENOME_LENGTH)
+        child1 = np.concatenate((parent1[:point], parent2[point:]))
+        child2 = np.concatenate((parent2[:point], parent1[point:]))
+        return child1, child2
+    else:
+        return parent1.copy(), parent2.copy()
+
+def mutate(individual):
+    for i in range(GENOME_LENGTH):
+        if np.random.rand() < MUTATION_PROB:
+            individual[i] += np.random.normal(0, MUTATION_STD)
+    return individual
+
+def genetic_algorithm():
+    population = initialize_population()
+    fitness_vals = evaluate_population(population)
+
+    best_fitness_per_gen = []
+
+    for gen in range(GENERATIONS):
+        new_population = []
+
+        if ELITISM:
+            elite_idx = np.argmax(fitness_vals)
+            elite = population[elite_idx].copy()
+
+        parents = select_parents(population, fitness_vals)
+
+        for i in range(0, POP_SIZE, 2):
+            p1, p2 = parents[i], parents[i+1]
+            c1, c2 = crossover(p1, p2)
+            new_population.append(mutate(c1))
+            new_population.append(mutate(c2))
+
+        population = np.array(new_population)
+        fitness_vals = evaluate_population(population)
+
+        if ELITISM:
+            worst_idx = np.argmin(fitness_vals)
+            population[worst_idx] = elite
+            fitness_vals[worst_idx] = fitness(elite)
+
+        best_fitness = np.max(fitness_vals)
+        best_fitness_per_gen.append(best_fitness)
+
+        print(f"Generation {gen+1}: Best Fitness = {best_fitness:.4f}")
+
+    best_idx = np.argmax(fitness_vals)
+    return population[best_idx], fitness_vals[best_idx], best_fitness_per_gen
+
+best_solution, best_fitness, fitness_history = genetic_algorithm()
+
+print("\nBest Solution Found:")
+print("x* =", best_solution)
+print("Fitness =", best_fitness)
+
+# --- Plotting the best fitness over generations ---
+plt.figure(figsize=(10, 5))
+plt.plot(fitness_history, label='Best Fitness')
+plt.title("Best Fitness over Generations")
+plt.xlabel("Generation")
+plt.ylabel("Fitness")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
